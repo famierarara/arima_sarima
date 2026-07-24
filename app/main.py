@@ -5,10 +5,12 @@ Run:
     uvicorn app.main:app --reload
 
 Then trigger the pipeline over HTTP instead of running scripts by hand:
-    POST /data/generate   -> (re)generate dummy data
-    POST /forecast/run    -> backtest + forecast, saves outputs/, returns JSON
-    GET  /forecast/{h}    -> read back a previously saved horizon's forecast
-    GET  /forecast/plot   -> the comparison PNG from the last /forecast/run
+    POST /data/generate    -> (re)generate dummy data
+    POST /forecast/run     -> backtest + forecast, saves outputs/, returns JSON
+    GET  /forecast/{h}     -> read back a previously saved horizon's forecast
+    GET  /forecast/plot    -> the comparison PNG from the last /forecast/run
+    GET  /metrics/history  -> every run's backtest RMSE/MAE/MAPE, oldest first
+    GET  /metrics/plot     -> MAPE trend over time (accuracy monitoring)
     GET  /health
 """
 
@@ -24,6 +26,7 @@ from fastapi.responses import FileResponse
 
 from data.generate_dummy_data import NUM_MONTHS, START_DATE, generate_book_sales
 from src.data_loader import load_book_sales, train_test_split_series
+from src.metrics_log import log_backtest_metrics, plot_metrics_history, read_metrics_history
 from src.pipeline import run_backtest, run_future_forecast
 
 from app.schemas import ForecastRequest, ForecastRunResponse, GenerateDataResponse
@@ -78,6 +81,8 @@ def run_forecast(request: ForecastRequest = ForecastRequest()):
     train, test = train_test_split_series(series, test_size=TEST_SIZE)
 
     backtest_results = run_backtest(train, test)
+    log_backtest_metrics(backtest_results)
+    plot_metrics_history(read_metrics_history())
 
     results, arima_full_forecast, sarima_full_forecast = run_future_forecast(
         series,
@@ -126,6 +131,27 @@ def get_plot():
     path = f"{OUTPUT_DIR}/forecast_comparison.png"
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="No plot available yet. Call POST /forecast/run first.")
+    return FileResponse(path, media_type="image/png")
+
+
+@app.get("/metrics/history")
+def get_metrics_history():
+    """Every past run's backtest RMSE/MAE/MAPE, oldest first. Empty list if none logged yet."""
+    df = read_metrics_history()
+    df = df.where(pd.notnull(df), None)  # NaN (empty seasonal_order for ARIMA rows) isn't valid JSON
+    return df.to_dict(orient="records")
+
+
+@app.get("/metrics/plot")
+def get_metrics_plot():
+    """MAPE-over-time plot for both models, to check whether accuracy is drifting run to run."""
+    df = read_metrics_history()
+    if df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail="No metrics logged yet. Call POST /forecast/run at least once first.",
+        )
+    path = plot_metrics_history(df)
     return FileResponse(path, media_type="image/png")
 
 

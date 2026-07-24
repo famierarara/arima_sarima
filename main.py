@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 
 from src.data_loader import load_book_sales, train_test_split_series
 from src.evaluation import print_metrics
+from src.metrics_log import log_backtest_metrics, plot_metrics_history, read_metrics_history
 from src.pipeline import run_backtest, run_future_forecast
 
 DATA_PATH = "data/book_sales.csv"
@@ -62,6 +63,13 @@ def main():
     print_metrics(f"ARIMA{backtest_results['arima']['order']}", backtest_results["arima"]["metrics"])
     sarima = backtest_results["sarima"]
     print_metrics(f"SARIMA{sarima['order']}{sarima['seasonal_order']}", sarima["metrics"])
+
+    log_backtest_metrics(backtest_results)
+    history = read_metrics_history()
+    trend_path = plot_metrics_history(history)
+    print(f"Logged this run's metrics -> outputs/metrics_history.csv ({len(history)} rows total)")
+    if trend_path:
+        print(f"Updated MAPE trend plot -> {trend_path}")
 
     print("\n=== Refitting on full history and forecasting future months ===")
     results, arima_full_forecast, sarima_full_forecast = run_future_forecast(

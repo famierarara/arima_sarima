@@ -22,7 +22,8 @@ book_sales_forecast/
 │   ├── arima_model.py           # Step 3: ARIMA order search, fit, forecast
 │   ├── sarima_model.py          # Step 4: SARIMA order search, fit, forecast
 │   ├── evaluation.py            # RMSE / MAE / MAPE helpers
-│   └── pipeline.py              # shared backtest/forecast logic (used by main.py AND the API)
+│   ├── pipeline.py              # shared backtest/forecast logic (used by main.py AND the API)
+│   └── metrics_log.py           # appends every run's backtest metrics to outputs/metrics_history.csv
 ├── app/
 │   ├── main.py                  # FastAPI app: HTTP endpoints that trigger the pipeline
 │   └── schemas.py                # request/response models
@@ -83,6 +84,24 @@ This will:
      `forecast_12_months.csv` — side-by-side ARIMA vs SARIMA forecasts.
    - `forecast_comparison.png` — plot of historical sales plus both models'
      12-month forecast.
+   - `metrics_history.csv` — this run's backtest RMSE/MAE/MAPE, appended (not
+     overwritten) so you can track accuracy across runs over time.
+   - `metrics_trend.png` — MAPE per model plotted across all logged runs.
+
+## Monitoring accuracy across runs
+
+A single run's RMSE/MAE/MAPE only tells you "was this forecast accurate right now?".
+Every time you run `main.py` (or call `POST /forecast/run`), the backtest metrics for
+both models are **appended** to `outputs/metrics_history.csv` (see
+`src/metrics_log.py`) — never overwritten — along with a timestamp and the chosen
+model order. `outputs/metrics_trend.png` plots MAPE per model across every logged
+run, so you can see at a glance whether accuracy is stable, improving, or drifting as
+you regenerate data or get new real months.
+
+Use this to answer questions a single run can't:
+- Is SARIMA's MAPE creeping up over time? (the seasonal pattern may be drifting —
+  time to widen the order search or re-examine the data)
+- Did accuracy suddenly get much worse after a specific run? (something changed)
 
 ## Run as a FastAPI microservice
 
@@ -102,6 +121,8 @@ Then open http://127.0.0.1:8000/docs for interactive Swagger docs, or call it di
 | POST   | `/forecast/run`      | Backtests ARIMA/SARIMA, refits on full history, forecasts (default 3/6/9/12) |
 | GET    | `/forecast/{horizon}`| Reads back a previously saved forecast, e.g. `/forecast/12`                  |
 | GET    | `/forecast/plot`     | Returns `forecast_comparison.png` from the last `/forecast/run`              |
+| GET    | `/metrics/history`   | Every past run's backtest RMSE/MAE/MAPE, oldest first                        |
+| GET    | `/metrics/plot`      | Returns `metrics_trend.png` — MAPE per model across all logged runs          |
 
 Example:
 
