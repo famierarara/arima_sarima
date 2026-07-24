@@ -5,6 +5,11 @@ classical time-series models: **ARIMA** and **SARIMA**. Includes a dummy data
 generator so the whole pipeline runs out of the box, both as a CLI script and as
 a **FastAPI microservice** you can trigger over HTTP.
 
+See [`docs/FORECASTING_EXPLAINED.md`](docs/FORECASTING_EXPLAINED.md) for a full
+walkthrough of every transformation from raw data to forecast number — what `p, d, q`
+and the seasonal `P, D, Q, m` actually mean, how the order search picks them, and why
+SARIMA's forecast reproduces the seasonal shape while ARIMA's flattens out.
+
 ## Project structure
 
 ```
