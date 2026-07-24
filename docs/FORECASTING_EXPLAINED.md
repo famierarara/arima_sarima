@@ -10,6 +10,55 @@ Code references point to `book_sales_forecast/` files.
 
 ---
 
+## Explain it like I'm 5
+
+Imagine you have a little book stand, and every month you count how many books you
+sold, going back 7 years.
+
+- **Trend**: every year you get a little more well-known, so slowly, slowly, you
+  sell a few more books than last year. Not a big jump — just a gentle climb.
+- **Seasonality**: every single December, without fail, you sell a LOT of books,
+  because people buy them as gifts. Every January, you sell way fewer, because
+  everyone already spent their money in December. This happens every year, like
+  clockwork — summer, winter, summer, winter, forever.
+- **Noise**: sometimes it just rains extra hard one random Tuesday, or a bus full of
+  tourists randomly walks by, and that month is a little higher or lower than
+  normal for no real reason. Nobody could have guessed it ahead of time.
+
+Now imagine two robot friends who try to guess how many books you'll sell next month.
+
+- **Robot ARIMA** only remembers the last few months, and remembers "was I guessing
+  too high or too low lately?" so it can correct itself a bit. But Robot ARIMA
+  doesn't own a calendar — it has no idea December is special. It just sees "sales
+  have been going up a little" and guesses "a little more," over and over, forever.
+  That's why its guess for next December looks the same as its guess for next June:
+  it simply doesn't know December is different.
+- **Robot SARIMA** remembers the same things Robot ARIMA does, *plus* it owns a
+  calendar. It also checks "what did I sell this exact same month last year?" So
+  when it gets to December, it remembers "oh, last December was huge, and the
+  December before that was huge too" — and guesses a big number for the upcoming
+  December, and a small number for the upcoming January. That's why Robot SARIMA's
+  guesses go up and down through the year instead of just climbing in a straight line.
+
+How do we pick which robot brain to use (how many months back it should remember)?
+We try out a bunch of different robot brains — one that remembers 1 month, one that
+remembers 2, one that also double-checks last year, and so on — and we give each one
+a **score** for how good and how simple it is. We keep whichever brain got the best
+score. That's the "grid search" and "AIC" bit.
+
+But before trusting a robot's guess about the *real* future (which we can't check
+yet!), we play a trick on it: we cover up the last 12 months with our hand, ask the
+robot to guess those months as if it didn't already know the answer, then peek and
+see how close it got. That's **backtesting** — like a practice quiz before the real
+test. Whichever robot did better on the practice quiz (Robot SARIMA, it turns out) is
+the one we trust more for guessing the real future.
+
+Once we know which robot is better, we let it look at *everything* we know so far —
+all 7 years — and ask: "okay, now really guess the next 3, 6, 9, and 12 months." That
+final guess is the forecast number you see in the results.
+
+---
+
 ## 0. Plain-English glossary (start here if any term below is new to you)
 
 Skip this if you already know what ARIMA/AIC/RMSE mean — it's the same concepts as
