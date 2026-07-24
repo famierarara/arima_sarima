@@ -10,6 +10,71 @@ Code references point to `book_sales_forecast/` files.
 
 ---
 
+## 0. Plain-English glossary (start here if any term below is new to you)
+
+Skip this if you already know what ARIMA/AIC/RMSE mean — it's the same concepts as
+the rest of the doc, just without the notation.
+
+- **Time series** — just a list of numbers over time. "Sales each month for 7 years"
+  is a time series.
+- **Trend** — the big-picture direction, ignoring the small ups and downs: is it
+  generally climbing, falling, or flat over years? Like noticing your weight has
+  gone up 5 lbs over a year, even though it wiggles up and down day to day.
+- **Seasonality** — a pattern that repeats on a fixed schedule. Ice cream sales spike
+  every summer; book sales spike every December. It's called "seasonal" even if the
+  repeating cycle isn't literally the four seasons — here it repeats every 12 months.
+- **Noise** — the random wiggle left over that doesn't come from trend or
+  seasonality. No pattern, can't be predicted, just chance.
+- **Stationary** — a fancy word for "boring and stable": a series whose average level
+  and typical wiggle-size stay the same over time, with no trend and no seasonality
+  left in it. Some models need the data put into this "boring" shape before they can
+  work.
+- **Differencing** — instead of looking at the raw numbers, look at the *change from
+  last time* (`this month minus last month`). This is the standard trick to turn a
+  trending series into a stationary one — a steadily climbing line becomes a roughly
+  flat line of "how much it climbed each month."
+- **Lag** — "how far back" you're looking. Lag 1 = last month. Lag 12 = the same
+  month one year ago.
+- **AR (AutoRegressive)** — "predict the next value from recent past values."
+  Example: guess next month's sales as a weighted blend of the last few months.
+- **MA (Moving Average, of errors)** — "predict the next value partly from how wrong
+  your recent guesses were." If the model kept under-guessing the last two months,
+  it nudges the next guess up to compensate.
+- **ARIMA(p, d, q)** — one model that combines all three ideas above:
+  - `p` = how many past *values* it looks back at (the AR part)
+  - `d` = how many times you difference the data first, to strip out trend
+  - `q` = how many past *mistakes* it looks back at (the MA part)
+- **SARIMA(p, d, q)(P, D, Q, m)** — the same idea as ARIMA, plus a second copy of it
+  applied one full cycle back instead of one step back. `m` is the cycle length (12
+  for "yearly" on monthly data). So alongside "look at last month," it also looks at
+  "look at this same month last year" — which is what lets it actually learn a
+  repeating seasonal shape instead of just a trend.
+- **Fitting a model** — the computer trying out internal numbers (coefficients) until
+  its predictions match the historical data as closely as possible. This is the
+  "training" step.
+- **AIC (Akaike Information Criterion)** — a single score used to compare candidate
+  models: rewards a model for fitting the data well, but penalizes it for being
+  needlessly complicated. Lower AIC = better trade-off. Used here to automatically
+  pick `p, d, q` (and `P, D, Q`) instead of guessing by hand.
+- **Grid search** — trying every reasonable combination of settings (every `p, d, q`
+  in a range) and keeping whichever one scored best (lowest AIC). Brute force, not
+  clever, but reliable.
+- **Forecast** — once a model is fitted on known data, ask it to predict values for
+  dates it has never seen (the future).
+- **Backtesting** — a practice exam for the model: hide the most recent real months,
+  pretend you don't know them, have the model forecast them anyway, then compare the
+  guess to what actually happened. This is how you find out if a model is any good
+  *before* trusting its forecast of the real, unknown future.
+- **RMSE / MAE / MAPE** — three ways to score "how wrong were the guesses," all
+  computed only during backtesting (where the real answer is known):
+  - **MAE** — the average size of the miss, in the original units (e.g. "off by 285
+    books on average").
+  - **RMSE** — similar to MAE, but big misses count extra (squares the errors before
+    averaging) — a high RMSE relative to MAE means the model had a few bad misses
+    rather than many small ones.
+  - **MAPE** — the miss size as a percentage of the real value (e.g. "off by 5% on
+    average") — easiest to compare across models or datasets of different scale.
+
 ## 1. What the data actually looks like
 
 `data/generate_dummy_data.py` builds each month's sales as:
