@@ -311,6 +311,47 @@ above), where real held-out values exist to compare against:
   the same idea as MAE but as a percentage of the actual value, which is why it's the
   easiest of the three to compare across models regardless of scale.
 
+## 7. What if the numbers change over time? (monitoring & drift)
+
+**Simplest version:** think of the model like a kid who's gotten really good at
+guessing what day the ice cream truck comes, just by watching the last few months.
+If the truck starts coming on different days, the kid's old guessing habit stops
+working — that's what a rising MAPE means: the guess used to match reality, and now
+it doesn't.
+
+The good news: **every time you re-run the pipeline, the "kid" re-learns from
+scratch.** It's not stuck with old habits — `run_backtest` re-runs the AIC grid
+search on whatever data exists *right now*, so a lot of drift fixes itself
+automatically just by re-running with fresh data (see `outputs/metrics_history.csv`
+and `outputs/metrics_trend.png`, from `src/metrics_log.py`, for tracking this across
+runs rather than trusting a single run).
+
+But sometimes it needs a bigger nudge, and there are exactly two dials for that:
+
+1. **"How far back are you allowed to think?"** — the `*_RANGE` constants at the top
+   of `src/arima_model.py` and `src/sarima_model.py` (e.g. `P_RANGE`, `D_RANGE`,
+   `SP_RANGE`...) cap how complex a pattern the grid search is even allowed to try.
+   If reality now needs a more complex pattern than the search is allowed to
+   consider, widen these ranges.
+2. **"How long is one full cycle?"** — `SEASONAL_PERIOD = 12` in
+   `src/sarima_model.py` means "compare each month to the same month one year ago."
+   If the real repeating cycle isn't yearly anymore (e.g. you switch to weekly data,
+   or the business itself becomes driven by a different cycle), this is the number
+   to change to match it.
+
+**If neither dial fixes it, that's the real warning sign** — not "MAPE went up
+once," but "MAPE keeps getting worse run after run even as the search re-adapts."
+It means something genuinely different happened in the real world (a new product
+line, a pricing change, a disruption like COVID) rather than the usual noise ARIMA/
+SARIMA already expect. No dial fixes that — the real options are: exclude the
+disrupted period from training data, add an external variable (SARIMAX with
+exogenous regressors), or accept that a different modeling approach is needed. That's
+a judgment call about what changed in the business, not a settings tweak.
+
+**Simplest possible rule:** one bad guess = don't panic, just re-run with fresh data.
+Guesses getting worse *again and again* over many re-runs = something real changed,
+time to actually go look at what happened.
+
 ## Summary of the full path
 
 ```
